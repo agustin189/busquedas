@@ -1,0 +1,137 @@
+import heapq
+
+# Representar un nodo
+class Nodo:
+    def __init__(self, estado, padre=None, g=0, h=0):
+        self.estado = estado  # Estado actual (es su posición dentro del eje "H")
+        self.padre = padre    # Nodo padre (para reconstruir el camino)
+        self.g = g            # Costo desde el nodo inicial
+        self.h = h            # Heurística (estimación de la distancia a "A")
+        self.f = g + h        # Cálculo f = g + h
+
+    def __lt__(self, other):
+        return self.f < other.f
+
+# Generar un grafo dinámico
+def generar_grafo(n_nodos):
+    grafo = {}
+    grafo["B"] = ["B1"]  # Nodo inicial "B" que se conecta a "B1"
+    for i in range(1, n_nodos + 1):
+        nodo = f"B{i}"
+        vecinos = []
+        if i < n_nodos:  # Si no es el último nodo, agregar B(i+1)
+            vecinos.append(f"B{i + 1}")
+        if i > 1:  # Si no es el primer nodo, agregar B(i-1)
+            vecinos.append(f"B{i - 1}")
+        grafo[nodo] = vecinos
+    # El último nodo tiene solamente de vecino al anterior
+    grafo[f"B{n_nodos}"] = [f"B{n_nodos - 1}"] 
+
+    return grafo
+
+# Heurística (distancia al objetivo, dentro del eje "H")
+def heuristica(nodo, n_nodos):
+    if nodo == f"B{n_nodos}":  # Si el nodo es el objetivo
+        return 0
+    elif nodo == "B":  # Estado inicial
+        return n_nodos  # Distancia máxima desde B a Bn (Bn es el objetivo -> "A")
+    else:
+        return n_nodos - int(nodo[1:])  # Distancia decreciente hacia el objetivo
+
+# Camino inverso, desde el nodo objetivo
+def reconstruir_camino(nodo):
+    camino = []
+    while nodo:
+        camino.append(nodo.estado)
+        nodo = nodo.padre
+    camino.reverse()
+    return camino
+
+# A* para búsqueda heurística
+def a_star_busqueda(grafo, estado_inicial, n_nodos):
+    lista_abierta = []
+    lista_cerrada = set()
+
+    # Inicializar nodo raíz
+    g_inicial = 0
+    h_inicial = heuristica(estado_inicial, n_nodos)
+    nodo_inicial = Nodo(estado_inicial, g=g_inicial, h=h_inicial)
+    heapq.heappush(lista_abierta, nodo_inicial)
+
+    while lista_abierta:
+        # Retirar el primer nodo de la lista abierta
+        nodo_actual = heapq.heappop(lista_abierta)
+        lista_cerrada.add(nodo_actual.estado)
+
+        # Muestra información del nodo explorado y los valores de g, h y f
+        print(f"Explorando nodo: {nodo_actual.estado}, g={nodo_actual.g}, h={nodo_actual.h}, f={nodo_actual.f}")
+        
+        if nodo_actual.estado == f"B{n_nodos}": 
+            return reconstruir_camino(nodo_actual)
+
+        # Se expande el nodo actual
+        vecinos = grafo.get(nodo_actual.estado, [])
+        for vecino in vecinos:
+            if vecino in lista_cerrada:
+                continue
+
+            nuevo_g = nodo_actual.g + 1  # Aumento del costo g en 1
+            h = heuristica(vecino, n_nodos)  # Cálculo de h
+            nuevo_nodo = Nodo(vecino, nodo_actual, g=nuevo_g, h=h)
+
+            # Para agregar nodo a lista abierta
+            if vecino not in [n.estado for n in lista_abierta]:
+                heapq.heappush(lista_abierta, nuevo_nodo)
+                # Muestra el número de nodo al agregarlo a la lista abierta
+                print(f" Se agrega el nodo {vecino} a la lista abierta") 
+            else:
+                # Verifica si el nuevo nodo es mejor
+                for n in lista_abierta:
+                    if n.estado == vecino and nuevo_g < n.g:
+                        n.g = nuevo_g
+                        n.h = h
+                        n.f = nuevo_g + h
+                        n.padre = nodo_actual
+                        heapq.heapify(lista_abierta)  # Reordena la lista abierta
+                        print(f" Actualizando {vecino} en la lista abierta: g={n.g}, h={h}, f={n.f}")
+
+    print("No se encontró un camino al objetivo")
+    return None
+
+# Cantidad de nodos por preconfigurados (acorde al ejemplo de la situación problemática)
+n_nodos_preconfigurado = 6  
+
+# Ingresar la cantidad de nodos (o con ENTER van los preconfigurados)
+entrada = input(f"\nSe realizará una búsqueda heurística en un árbol de {n_nodos_preconfigurado} nodos. ENTER para aceptar o ingrese nuevo valor entero y luego ENTER: ")
+
+# Comprueba si se ingresó valor o se utiliza el existente en el código
+if entrada.isdigit():
+    n_nodos = int(entrada)
+else:
+    n_nodos = n_nodos_preconfigurado
+
+# Muestra la cantidad de nodos a recorrer
+print(f"\nEl árbol tiene {n_nodos} nodos")
+
+# Generación del grafo
+grafo = generar_grafo(n_nodos)
+
+# Muestra el grafo generado
+print("Grafo generado:")
+for nodo, vecinos in grafo.items():
+    print(f"{nodo}: {vecinos}")
+
+# Estado inicial fijo en B, que es el punto indicado en la situación problemática
+estado_inicial = 'B'
+
+
+camino_encontrado = a_star_busqueda(grafo, estado_inicial, n_nodos)
+
+# Muestra el camino encontrado
+if camino_encontrado:
+    camino_B = [nodo for nodo in camino_encontrado if nodo.startswith('B')]
+    print(f"\nCamino encontrado: {' -> '.join(camino_B)}")
+    if camino_B:
+        print(f"{camino_B[-1]} es el nodo objetivo (A)\n")  # Aclaración en pantalla de que ese nodo es realmente A.
+else:
+    print("No se encontró un camino")
